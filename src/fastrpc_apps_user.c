@@ -257,10 +257,7 @@ static void create_dev(void)
 		VERIFY(!apps_std_fread(fh, ginit.file, len, &readlen, &eof));
 		VERIFY(ginit.filelen == readlen);
 		ginit.filefd = rpcmem_to_fd((void *)ginit.file);
-		ginit.memlen = STD_MAX(1024 * 1024 * 2, (int)len * 4);
-		ginit.mem = rpcmem_alloc(0, RPCMEM_HEAP_DEFAULT, ginit.memlen);
-		VERIFY(ginit.mem);
-		ginit.memfd = rpcmem_to_fd(ginit.mem);
+		ginit.mem = NULL;
 		VERIFY(0 == ioctl(dev, FASTRPC_IOCTL_INIT, (unsigned long)&ginit));
 		gdev = dev;
 		dev = -1;
