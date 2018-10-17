@@ -30,30 +30,46 @@
 */
 #include "rpcmem.h"
 #include "verify.h"
+#include "fastrpc_internal.h"
 #include "AEEQList.h"
 #include "AEEstd.h"
+#include "apps_std.h"
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <pthread.h>
+#include <fcntl.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/ioctl.h>
+#include <sys/mman.h>
+#include <errno.h>
 
 #define FASTRPC_DEVICE "/dev/fastrpc-adsp"
+
 #define PAGE_SIZE 4096
 #define PAGE_MASK ~((uintptr_t)PAGE_SIZE - 1)
 
 static QList rpclst;
 static pthread_mutex_t rpcmt;
-
 struct rpc_info
 {
 	QNode qn;
 	void *buf;
 	void *aligned_buf;
 	int size;
+	int fd;
 };
+
+extern int open_dev(int attach);
+static int rpcmem_open_dev()
+{
+	return open_dev(0);
+}
 
 void rpcmem_init()
 {
+	int fd;
 	QList_Ctor(&rpclst);
 	pthread_mutex_init(&rpcmt, 0);
 }
@@ -65,23 +81,52 @@ void rpcmem_deinit()
 
 int rpcmem_to_fd(void *po)
 {
-	return 1;
+	struct rpc_info *rinfo, *rfree = 0;
+	QNode *pn, *pnn;
+
+	pthread_mutex_lock(&rpcmt);
+	QLIST_NEXTSAFE_FOR_ALL(&rpclst, pn, pnn)
+	{
+		rinfo = STD_RECOVER_REC(struct rpc_info, qn, pn);
+		if (rinfo->aligned_buf == po)
+		{
+			rfree = rinfo;
+			break;
+		}
+	}
+	pthread_mutex_unlock(&rpcmt);
+
+	if (rfree)
+		return rfree->fd;
+
+	return -1;
 }
 
 void *rpcmem_alloc(int heapid, uint32 flags, int size)
 {
 	struct rpc_info *rinfo;
+	struct fastrpc_alloc_dma_buf buf;
 	int nErr = 0;
 	(void)heapid;
 	(void)flags;
+	int dev = rpcmem_open_dev();
 
 	VERIFY(0 != (rinfo = calloc(1, sizeof(*rinfo))));
-	VERIFY(0 != (rinfo->buf = malloc(size + PAGE_SIZE)));
-	rinfo->aligned_buf = (void *)(((uintptr_t)rinfo->buf + PAGE_SIZE) & PAGE_MASK);
+
+	buf.size = size + PAGE_SIZE;
+	buf.fd = -1;
+	buf.flags = 0;
+
+	VERIFY((0 == ioctl(dev, FASTRPC_IOCTL_ALLOC_DMA_BUFF, (unsigned long)&buf)) || errno == ENOTTY);
+	VERIFY(0 != (rinfo->buf = mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, buf.fd, 0)));
+	rinfo->fd = buf.fd;
+	rinfo->aligned_buf = (void *)(((uintptr_t)rinfo->buf /*+ PAGE_SIZE*/) & PAGE_MASK);
+	rinfo->aligned_buf = rinfo->buf;
 	rinfo->size = size;
 	pthread_mutex_lock(&rpcmt);
 	QList_AppendNode(&rpclst, &rinfo->qn);
 	pthread_mutex_unlock(&rpcmt);
+
 	return rinfo->aligned_buf;
 bail:
 	if (nErr)
@@ -102,6 +147,7 @@ void rpcmem_free(void *po)
 {
 	struct rpc_info *rinfo, *rfree = 0;
 	QNode *pn, *pnn;
+	int nErr = 0;
 
 	pthread_mutex_lock(&rpcmt);
 	QLIST_NEXTSAFE_FOR_ALL(&rpclst, pn, pnn)
@@ -117,7 +163,13 @@ void rpcmem_free(void *po)
 	pthread_mutex_unlock(&rpcmt);
 	if (rfree)
 	{
-		free(rfree->buf);
+		int dev = rpcmem_open_dev(0);
+
+		VERIFY((0 == ioctl(dev, FASTRPC_IOCTL_FREE_DMA_BUFF, (unsigned long)&rfree->fd)) || errno == ENOTTY);
+		munmap(rfree->buf, rfree->size);
 		free(rfree);
 	}
+bail:
+	return;
+
 }
