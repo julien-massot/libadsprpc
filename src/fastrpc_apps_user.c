@@ -791,6 +791,7 @@ static int fastrpc_apps_user_deinit()
 
 
 	VERIFY_EPRINTF("exit:");
+	free_init_mem();
 	if (olddev != -1)
 	{
 		adsp_current_process_exit();
@@ -807,7 +808,6 @@ static int fastrpc_apps_user_deinit()
 
 	apps_mem_deinit();
 	apps_std_deinit();
-	free_init_mem();
 	rpcmem_deinit();
 	pthread_mutex_destroy(&fdlist.mut);
 	return 0;
