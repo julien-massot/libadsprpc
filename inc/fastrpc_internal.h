@@ -41,7 +41,8 @@
 #define FASTRPC_IOCTL_INVOKE_FD     _IOWR('R', 4, struct fastrpc_ioctl_invoke_fd)
 #define FASTRPC_IOCTL_SETMODE       _IOWR('R', 5, uint32)
 #define FASTRPC_IOCTL_INIT          _IOWR('R', 6, struct fastrpc_ioctl_init)
-
+#define FASTRPC_IOCTL_ALLOC_DMA_BUFF _IOWR('R', 16, struct fastrpc_ioctl_alloc_dma_buf)
+#define FASTRPC_IOCTL_FREE_DMA_BUFF _IOWR('R', 17, uint32_t)
 
 #define DEVICE_NAME "adsprpc-smd"
 
@@ -88,6 +89,12 @@ struct fastrpc_ioctl_init
 	void *mem;
 	int memlen;
 	int memfd;
+};
+
+struct fastrpc_ioctl_alloc_dma_buf {
+	int     fd;	/* fd */
+	ssize_t size;	/* size */
+	uint32_t flags;	/* flags to map with */
 };
 
 struct fastrpc_ioctl_munmap
