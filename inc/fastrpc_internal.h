@@ -44,7 +44,7 @@
 #define FASTRPC_IOCTL_ALLOC_DMA_BUFF _IOWR('R', 16, struct fastrpc_ioctl_alloc_dma_buf)
 #define FASTRPC_IOCTL_FREE_DMA_BUFF _IOWR('R', 17, uint32_t)
 
-#define DEVICE_NAME "adsprpc-smd"
+#define DEVICE_NAME "fastrpc-adsp"
 
 #if !(defined __qdsp6__) && !(defined __hexagon__)
 static __inline uint32 Q6_R_cl0_R(uint32 num)

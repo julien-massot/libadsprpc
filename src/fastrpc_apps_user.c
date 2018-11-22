@@ -64,7 +64,7 @@
 #endif
 
 #ifndef FASTRPC_DEVICE
-#define FASTRPC_DEVICE "/dev/adsprpc-smd"
+#define FASTRPC_DEVICE "/dev/fastrpc-adsp"
 #endif
 
 #define EVENT_SIZE          ( sizeof (struct inotify_event) )

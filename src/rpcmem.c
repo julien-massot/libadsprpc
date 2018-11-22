@@ -37,6 +37,7 @@
 #include <stdio.h>
 #include <pthread.h>
 
+#define FASTRPC_DEVICE "/dev/fastrpc-adsp"
 #define PAGE_SIZE 4096
 #define PAGE_MASK ~((uintptr_t)PAGE_SIZE - 1)
 
