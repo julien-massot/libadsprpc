@@ -50,6 +50,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
+#include <linux/types.h>
 #include <errno.h>
 
 #ifndef _WIN32
@@ -105,7 +106,7 @@ static struct log_config_watcher_params log_config_watcher = {0};
 extern const char *__progname;
 static int gdev = -1;
 static int glist = -1;
-static struct fastrpc_ioctl_init ginit = {0};
+static struct fastrpc_init_create ginit = {0};
 static pthread_key_t tlsKey = 0;
 
 int listener_init(void);
@@ -207,8 +208,8 @@ static void attach_dev(void)
 		dev = open(FASTRPC_DEVICE, O_NONBLOCK);
 		VERIFY(dev >= 0);
 	}
-	ginit.flags = FASTRPC_INIT_ATTACH;
-	VERIFY((0 == ioctl(dev, FASTRPC_IOCTL_INIT, (unsigned long)&ginit)) || errno == ENOTTY);
+
+	VERIFY((0 == ioctl(dev, FASTRPC_IOCTL_INIT_ATTACH)) || errno == ENOTTY);
 	gdev = dev;
 bail:
 	if (nErr && (dev >= 0))
@@ -220,17 +221,12 @@ bail:
 
 static void free_init_mem(void)
 {
-	if (ginit.flags == FASTRPC_INIT_CREATE)
+	if (1)
 	{
 		if (ginit.file)
 		{
 			rpcmem_free(ginit.file);
 			ginit.file = 0;
-		}
-		if (ginit.mem)
-		{
-			rpcmem_free(ginit.mem);
-			ginit.mem = 0;
 		}
 	}
 }
@@ -250,16 +246,14 @@ static void create_dev(void)
 		VERIFY(!apps_std_fopen_with_env("ADSP_LIBRARY_PATH", ";", "fastrpc_shell_0", "r", &fh));
 		VERIFY(!apps_std_flen(fh, &len));
 		VERIFY(len < INT_MAX);
-		ginit.flags = FASTRPC_INIT_CREATE;
 		ginit.file = rpcmem_alloc(0, RPCMEM_HEAP_DEFAULT, (int)len);
 		VERIFY(ginit.file);
 		ginit.filelen = (int)len;
 		VERIFY(!apps_std_fread(fh, ginit.file, len, &readlen, &eof));
 		VERIFY(ginit.filelen == readlen);
 		ginit.filefd = rpcmem_to_fd((void *)ginit.file);
-		ginit.mem = NULL;
-		VERIFY(0 == ioctl(dev, FASTRPC_IOCTL_INIT, (unsigned long)&ginit));
 		gdev = dev;
+		VERIFY(0 == ioctl(dev, FASTRPC_IOCTL_INIT_CREATE, (unsigned long)&ginit));
 		dev = -1;
 	}
 bail:
@@ -814,54 +808,45 @@ SHARED_OBJECT_API_ENTRY(fastrpc_apps_user_init, fastrpc_apps_user_deinit);
 
 int remote_handle_invoke(remote_handle handle, uint32_t sc, remote_arg *pra)
 {
-	struct fastrpc_ioctl_invoke_fd invoke;
-	int fds[32], *pfds = 0, bufs, i, req, nErr = 0;
+	struct fastrpc_invoke invoke;
+	struct fastrpc_invoke_args *args;
+	int bufs, i, req, nErr = 0;
 	int dev = open_dev(0);
 	VERIFY(dev != -1);
-	invoke.inv.handle = handle;
-	invoke.inv.sc = sc;
-	invoke.inv.pra = pra;
+	invoke.handle = handle;
+	invoke.sc = sc;
 
 	bufs = REMOTE_SCALARS_LENGTH(sc);
-	if (bufs > STD_ARRAY_SIZE(fds))
-	{
-		VERIFY(0 != (pfds = malloc(bufs * sizeof(*pfds))));
-	}
-	else
-	{
-		pfds = fds;
-	}
-	invoke.fds = pfds;
+
+	args = malloc(bufs * sizeof(*args));
+	if (!args)
+		return -ENOMEM;
+
+	invoke.args = (__u64)(uintptr_t)args;
+
 	for (i = 0; i < bufs; i++)
 	{
+		args[i].length = pra[i].buf.nLen;
+		args[i].ptr = (__u64)(uintptr_t)pra[i].buf.pv;
+
 		if (pra[i].buf.nLen)
 		{
-			pfds[i] = fdlist_fd_to_buf(pra[i].buf.pv);
+			args[i].fd = fdlist_fd_to_buf(pra[i].buf.pv);
 		}
 		else
 		{
-			pfds[i] = -1;
+			args[i].fd = -1;
 		}
 	}
 	req = FASTRPC_IOCTL_INVOKE;
-	for (i = 0; i < bufs; i++)
-	{
-		if (pfds[i] != -1)
-		{
-			req = FASTRPC_IOCTL_INVOKE_FD;
-			break;
-		}
-	}
+
 	if (0 == pthread_getspecific(tlsKey))
 	{
 		pthread_setspecific(tlsKey, (void *)1);
 	}
+
 	nErr = ioctl(dev, req, (unsigned long)&invoke);
 bail:
-	if (pfds && (pfds != fds))
-	{
-		free(pfds);
-	}
 	return nErr;
 }
 
