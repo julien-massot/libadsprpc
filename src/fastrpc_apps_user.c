@@ -243,6 +243,7 @@ static void create_dev(void)
 
 		dev = open(FASTRPC_DEVICE, O_NONBLOCK);
 		VERIFY(dev >= 0);
+		gdev = dev;
 		VERIFY(!apps_std_fopen_with_env("ADSP_LIBRARY_PATH", ";", "fastrpc_shell_0", "r", &fh));
 		VERIFY(!apps_std_flen(fh, &len));
 		VERIFY(len < INT_MAX);
@@ -252,7 +253,6 @@ static void create_dev(void)
 		VERIFY(!apps_std_fread(fh, ginit.file, len, &readlen, &eof));
 		VERIFY(ginit.filelen == readlen);
 		ginit.filefd = rpcmem_to_fd((void *)ginit.file);
-		gdev = dev;
 		VERIFY(0 == ioctl(dev, FASTRPC_IOCTL_INIT_CREATE, (unsigned long)&ginit));
 		dev = -1;
 	}
@@ -281,7 +281,7 @@ static void create_listener(void)
 	glist = listener_init();
 }
 
-static int open_dev(int attach)
+int open_dev(int attach)
 {
 	if (gdev == -1)
 	{
