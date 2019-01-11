@@ -225,7 +225,7 @@ static void free_init_mem(void)
 	{
 		if (ginit.file)
 		{
-			rpcmem_free(ginit.file);
+			rpcmem_free((void *)ginit.file);
 			ginit.file = 0;
 		}
 	}
@@ -247,10 +247,10 @@ static void create_dev(void)
 		VERIFY(!apps_std_fopen_with_env("ADSP_LIBRARY_PATH", ";", "fastrpc_shell_0", "r", &fh));
 		VERIFY(!apps_std_flen(fh, &len));
 		VERIFY(len < INT_MAX);
-		ginit.file = rpcmem_alloc(0, RPCMEM_HEAP_DEFAULT, (int)len);
+		ginit.file = (__u64)rpcmem_alloc(0, RPCMEM_HEAP_DEFAULT, (int)len);
 		VERIFY(ginit.file);
 		ginit.filelen = (int)len;
-		VERIFY(!apps_std_fread(fh, ginit.file, len, &readlen, &eof));
+		VERIFY(!apps_std_fread(fh, (void *)ginit.file, len, &readlen, &eof));
 		VERIFY(ginit.filelen == readlen);
 		ginit.filefd = rpcmem_to_fd((void *)ginit.file);
 		VERIFY(0 == ioctl(dev, FASTRPC_IOCTL_INIT_CREATE, (unsigned long)&ginit));
@@ -622,7 +622,8 @@ void deinitFileWatcher()
 
 	/* Destroy the file watcher thread */
 	log_config_watcher.stopThread = 1;
-	write(log_config_watcher.event_fd, &stop, sizeof(uint64));
+	if (write(log_config_watcher.event_fd, &stop, sizeof(uint64)) < 0)
+		perror("write");
 
 	pthread_join(log_config_watcher.thread, NULL);
 
