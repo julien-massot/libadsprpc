@@ -824,6 +824,7 @@ int remote_handle_invoke(remote_handle handle, uint32_t sc, remote_arg *pra)
 		return -ENOMEM;
 
 	invoke.args = (__u64)(uintptr_t)args;
+	args->reserved = 0;
 
 	for (i = 0; i < bufs; i++)
 	{
