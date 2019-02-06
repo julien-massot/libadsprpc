@@ -64,10 +64,6 @@
 #define INT_MAX (int)(-1)
 #endif
 
-#ifndef FASTRPC_DEVICE
-#define FASTRPC_DEVICE "/dev/fastrpc-adsp"
-#endif
-
 #define EVENT_SIZE          ( sizeof (struct inotify_event) )
 #define EVENT_BUF_LEN       ( 1024 * ( EVENT_SIZE + 16 ) )
 
@@ -244,7 +240,7 @@ static void create_dev(void)
 		dev = open(FASTRPC_DEVICE, O_NONBLOCK);
 		VERIFY(dev >= 0);
 		gdev = dev;
-		VERIFY(!apps_std_fopen_with_env("ADSP_LIBRARY_PATH", ";", "fastrpc_shell_0", "r", &fh));
+		VERIFY(!apps_std_fopen_with_env("ADSP_LIBRARY_PATH", ";", FASTRPC_SHELL, "r", &fh));
 		VERIFY(!apps_std_flen(fh, &len));
 		VERIFY(len < INT_MAX);
 		ginit.file = (__u64)rpcmem_alloc(0, RPCMEM_HEAP_DEFAULT, (int)len);

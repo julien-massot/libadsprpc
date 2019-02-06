@@ -107,6 +107,14 @@ struct fastrpc_ioctl_mmap
 
 #define FASTRPC_SMD_GUID "fastrpcsmd-apps-dsp"
 
+#if defined CDSP_DOMAIN
+#define FASTRPC_DEVICE "/dev/fastrpc-cdsp"
+#define FASTRPC_SHELL "fastrpc_shell_3"
+#else /* Defaults to ADSP */
+#define FASTRPC_DEVICE "/dev/fastrpc-adsp"
+#define FASTRPC_SHELL "fastrpc_shell_0"
+#endif
+
 struct smq_null_invoke32
 {
 	uint32_t ctx;         //! invoke caller context
