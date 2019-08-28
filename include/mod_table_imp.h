@@ -246,7 +246,7 @@ static int open_mod_table_open_dynamic(struct open_mod_table *me, const char *in
 {
 	int nErr = 0, dlErr = 0;
 	struct open_mod *dm = 0, *dmOld;
-	int i, len, snlen;
+	int len, snlen;
 	int name_len = std_strlen(in_name);
 	char  *pSoName =  0;
 	char  *pTestName =  0;

@@ -67,7 +67,6 @@ static int rpcmem_open_dev()
 
 void rpcmem_init()
 {
-	int fd;
 	QList_Ctor(&rpclst);
 	pthread_mutex_init(&rpcmt, 0);
 }
